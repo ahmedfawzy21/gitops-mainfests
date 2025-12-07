@@ -21,7 +21,7 @@ patches:
 images:
   - name: IMAGE_PLACEHOLDER
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-loader
-    newTag: main-a419cc0-10
+    newTag: main-a419cc0-11
   - name: IMAGE_PLACEHOLDER
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-parser
     newTag: dev-latest
