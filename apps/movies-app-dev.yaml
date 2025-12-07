@@ -16,7 +16,7 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_ORG/gitops-manifests.git  # UPDATE THIS
+    repoURL: https://github.com/ahmedfawzy21/gitops-mainfests.git
     targetRevision: main
     path: overlays/dev
 
