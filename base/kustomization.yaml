@@ -1,0 +1,17 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: movies-app
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - movies-loader-rollout.yaml
+  - movies-parser-rollout.yaml
+  - movies-store-rollout.yaml
+  - movies-marketplace-rollout.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: movies-app
+  app.kubernetes.io/managed-by: argocd

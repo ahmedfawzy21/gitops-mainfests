@@ -1,0 +1,48 @@
+# =============================================================================
+# ArgoCD Application - Movies App (Dev Environment)
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: movies-app-dev
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: movies-app
+    environment: dev
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_ORG/gitops-manifests.git  # UPDATE THIS
+    targetRevision: main
+    path: overlays/dev
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: movies-app
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Ignore differences in fields managed by controllers
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /status

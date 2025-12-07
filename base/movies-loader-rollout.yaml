@@ -1,0 +1,129 @@
+# =============================================================================
+# movies-loader Argo Rollout - Blue/Green Deployment Strategy
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: movies-loader
+  namespace: movies-app
+  labels:
+    app: movies-loader
+    app.kubernetes.io/name: movies-loader
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: movies-loader
+  template:
+    metadata:
+      labels:
+        app: movies-loader
+        app.kubernetes.io/name: movies-loader
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+    spec:
+      containers:
+        - name: movies-loader
+          image: IMAGE_PLACEHOLDER
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: movies-app-config
+          env:
+            - name: PORT
+              value: "5000"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
+      volumes:
+        - name: data-volume
+          emptyDir: {}
+  strategy:
+    blueGreen:
+      # Active service (receives production traffic)
+      activeService: movies-loader-active
+      # Preview service (for testing new version before promotion)
+      previewService: movies-loader-preview
+      # Auto-promote after successful preview (set to false for manual approval)
+      autoPromotionEnabled: false
+      # Scale down previous ReplicaSet after promotion
+      scaleDownDelaySeconds: 30
+      # Preview ReplicaSet replicas
+      previewReplicaCount: 1
+      # Anti-affinity rules between blue and green
+      antiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          weight: 100
+---
+# Active Service (Production traffic)
+apiVersion: v1
+kind: Service
+metadata:
+  name: movies-loader-active
+  namespace: movies-app
+  labels:
+    app: movies-loader
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+      name: http
+  selector:
+    app: movies-loader
+---
+# Preview Service (New version testing)
+apiVersion: v1
+kind: Service
+metadata:
+  name: movies-loader-preview
+  namespace: movies-app
+  labels:
+    app: movies-loader
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+      name: http
+  selector:
+    app: movies-loader

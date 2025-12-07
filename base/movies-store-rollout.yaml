@@ -1,0 +1,140 @@
+# =============================================================================
+# movies-store Argo Rollout - Canary Deployment Strategy
+# (More critical service - gradual traffic shift)
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: movies-store
+  namespace: movies-app
+  labels:
+    app: movies-store
+    app.kubernetes.io/name: movies-store
+    app.kubernetes.io/component: backend
+spec:
+  replicas: 3
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: movies-store
+  template:
+    metadata:
+      labels:
+        app: movies-store
+        app.kubernetes.io/name: movies-store
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+    spec:
+      containers:
+        - name: movies-store
+          image: IMAGE_PLACEHOLDER
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: movies-app-config
+          env:
+            - name: PORT
+              value: "3000"
+            - name: NODE_ENV
+              value: "production"
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: movies-app-secrets
+                  key: MONGO_URI
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+  strategy:
+    canary:
+      # Canary service for metrics/analysis
+      canaryService: movies-store-canary
+      # Stable service (production traffic)
+      stableService: movies-store-stable
+      # Traffic routing (requires service mesh or ingress controller)
+      trafficRouting:
+        managedRoutes:
+          - name: primary
+      # Canary steps - gradual rollout
+      steps:
+        # Step 1: 10% traffic to canary
+        - setWeight: 10
+        - pause: {duration: 2m}
+        # Step 2: 25% traffic to canary
+        - setWeight: 25
+        - pause: {duration: 2m}
+        # Step 3: 50% traffic to canary
+        - setWeight: 50
+        - pause: {duration: 5m}
+        # Step 4: 75% traffic to canary
+        - setWeight: 75
+        - pause: {duration: 2m}
+        # Step 5: 100% - full promotion
+        - setWeight: 100
+      # Rollback on failure
+      maxSurge: "25%"
+      maxUnavailable: 0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movies-store-stable
+  namespace: movies-app
+  labels:
+    app: movies-store
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app: movies-store
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movies-store-canary
+  namespace: movies-app
+  labels:
+    app: movies-store
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+      name: http
+  selector:
+    app: movies-store

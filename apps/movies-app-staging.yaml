@@ -1,0 +1,45 @@
+# =============================================================================
+# ArgoCD Application - Movies App (Staging Environment)
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: movies-app-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: movies-app
+    environment: staging
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_ORG/gitops-manifests.git  # UPDATE THIS
+    targetRevision: main
+    path: overlays/staging
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: movies-app
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Rollout
+      jsonPointers:
+        - /status

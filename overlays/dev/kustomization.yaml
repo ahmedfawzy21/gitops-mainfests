@@ -1,0 +1,36 @@
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: movies-app
+
+resources:
+  - ../../base
+
+# Dev-specific patches
+patches:
+  # Reduce replicas for dev
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Rollout
+
+# Dev-specific images (will be overwritten by ArgoCD Image Updater)
+images:
+  - name: IMAGE_PLACEHOLDER
+    newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-loader
+    newTag: dev-latest
+  - name: IMAGE_PLACEHOLDER
+    newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-parser
+    newTag: dev-latest
+  - name: IMAGE_PLACEHOLDER
+    newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-store
+    newTag: dev-latest
+  - name: IMAGE_PLACEHOLDER
+    newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-marketplace
+    newTag: dev-latest
+
+commonLabels:
+  environment: dev

@@ -1,0 +1,108 @@
+# =============================================================================
+# movies-marketplace Argo Rollout - Blue/Green Deployment Strategy
+# (Frontend - fast switch between versions)
+# =============================================================================
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: movies-marketplace
+  namespace: movies-app
+  labels:
+    app: movies-marketplace
+    app.kubernetes.io/name: movies-marketplace
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: movies-marketplace
+  template:
+    metadata:
+      labels:
+        app: movies-marketplace
+        app.kubernetes.io/name: movies-marketplace
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      containers:
+        - name: movies-marketplace
+          image: IMAGE_PLACEHOLDER
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          env:
+            - name: API_URL
+              value: "http://movies-store-stable:3000"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+  strategy:
+    blueGreen:
+      activeService: movies-marketplace-active
+      previewService: movies-marketplace-preview
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 30
+      previewReplicaCount: 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movies-marketplace-active
+  namespace: movies-app
+  labels:
+    app: movies-marketplace
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: movies-marketplace
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: movies-marketplace-preview
+  namespace: movies-app
+  labels:
+    app: movies-marketplace
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: movies-marketplace
