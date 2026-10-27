@@ -18,16 +18,16 @@ patches:
       kind: Rollout
 
 images:
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-loader-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-loader
     newTag: prod-latest
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-parser-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-parser
     newTag: prod-latest
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-store-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-store
     newTag: prod-latest
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-marketplace-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-marketplace
     newTag: prod-latest
 

@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
         - name: movies-marketplace
-          image: IMAGE_PLACEHOLDER
+          image: movies-marketplace-image
           imagePullPolicy: Always
           ports:
             - containerPort: 8080

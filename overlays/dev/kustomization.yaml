@@ -19,16 +19,16 @@ patches:
 
 # Dev-specific images (will be overwritten by ArgoCD Image Updater)
 images:
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-loader-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-loader
     newTag: dev-latest
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-parser-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-parser
     newTag: dev-latest
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-store-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-store
     newTag: dev-latest
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-marketplace-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-marketplace
     newTag: dev-latest
 

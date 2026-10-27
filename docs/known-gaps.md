@@ -109,7 +109,7 @@ application SQS permissions.
 
 ---
 
-## Also found (not yet fixed): every service renders the movies-loader image
+## Fixed: every service rendered the movies-loader image
 
 **Where:** `overlays/{dev,staging,prod}/kustomization.yaml` `images:`. All four
 rollouts use `image: IMAGE_PLACEHOLDER`, and each overlay lists four `images:`
@@ -122,5 +122,35 @@ container for three of the four services. Whatever is running now must have
 been set some other way (CI `kustomize edit` / `kubectl set image`), and Git
 does not reflect it.
 
-**Planned fix:** Give each rollout a unique placeholder (e.g.
-`image: movies-parser`) and key each overlay's `images:` entry on that name.
+**Fix (branch `config-fixes`):** Each rollout now has its own image name
+(`movies-loader-image`, `movies-parser-image`, `movies-store-image`,
+`movies-marketplace-image`), and each overlay's `images:` entry is keyed on it.
+The shared library's `deployToK8sGitOps.groovy` updates `newTag` under
+`- name: <service>-image` and fails if the tag was not written.
+
+---
+
+## movies-marketplace: Angular 8 and Node versions are end-of-life
+
+**Where:** movies-marketplace (`package.json`: Angular 8.2, `@angular-devkit/build-angular`
+0.803), `Dockerfile` (builder stage `node:16-alpine`) and `Dockerfile.test`
+(`node:14-alpine`).
+
+**Effect:**
+
+- Angular 8 has been EOL since 2021 and gets no security fixes.
+- Unit tests run on **Node 14 only, as a stopgap**. Angular 8's Karma plugin
+  copies requests with `{ ...req }` (`build-angular/.../plugins/karma.js:269`).
+  On Node >= 16, `IncomingMessage.headers` is a lazy getter, so the copy has
+  no headers. `webpack-dev-middleware` then throws
+  `Cannot read properties of undefined (reading 'range')` and the Karma server
+  dies mid-run (on Node 20: 4 of 7 specs ran, 0 failed, the rest never ran).
+- The production builder stage uses `node:16`, also EOL. Only the test image is
+  on Node 14; it's not shipped.
+- Node 14 ships npm 6, which can't read the v3 lockfile, so the test image
+  installs npm 9.
+
+**Planned fix:** Upgrade Angular one major version at a time (8 → 9 → … → 17+)
+with `ng update`, fixing breaking changes and keeping the unit tests green at
+each step. Then move every image (builder, test and runtime) to a supported
+Node LTS, and remove the Node 14 / npm 9 stopgap from `Dockerfile.test`.
