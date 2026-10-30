@@ -31,5 +31,11 @@ images:
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-marketplace
     newTag: prod-latest
 
-commonLabels:
-  environment: prod
+# Labels on every resource's metadata only. Not on selectors: kustomize adds
+# selector labels to Services but cannot reach the Rollout CRD's pod template,
+# so the blue/green Services would select labels the pods never get
+# (Rollout InvalidSpec "unmatch label").
+labels:
+  - pairs:
+      environment: prod
+    includeSelectors: false
