@@ -1,0 +1,21 @@
+# =============================================================================
+# gp3 StorageClass for the dev MongoDB volume
+# EKS 1.30+ clusters have no default StorageClass. Own name, so it can't clash
+# with a gp2/gp3 class created some other way (StorageClass parameters are
+# immutable). Delete: the volume goes with its PVC (the PVC itself is retained
+# when the StatefulSet is deleted).
+# =============================================================================
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: movies-app-gp3
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+allowVolumeExpansion: true

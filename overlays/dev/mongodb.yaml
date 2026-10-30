@@ -1,0 +1,149 @@
+# =============================================================================
+# MongoDB for dev - one node, auth on, no replica set
+#
+# Credentials come from two Secrets that are never in Git; the terragrunt-structure
+# bootstrap creates them from Secrets Manager movies-app/dev/mongodb
+# (scripts/argocd-bootstrap.sh app-secrets):
+#   mongodb-auth        MONGO_INITDB_ROOT_USERNAME, MONGO_INITDB_ROOT_PASSWORD,
+#                       MONGO_APP_PASSWORD
+#   movies-app-secrets  MONGO_URI (user movies, database movies)
+# Run the bootstrap before this syncs: sync-wave -1 holds the whole dev
+# Application (Rollouts included) until MongoDB is healthy.
+#
+# The root user and the app user are created only on the first start, with an
+# empty volume; changing the passwords later is manual (docs/known-gaps.md).
+# =============================================================================
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-init
+  namespace: movies-app
+  labels:
+    app: mongodb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+data:
+  # Run by the image entrypoint (docker-entrypoint-initdb.d) as root, first start only
+  create-app-user.js: |
+    db.getSiblingDB('movies').createUser({
+      user: 'movies',
+      pwd: process.env.MONGO_APP_PASSWORD,
+      roles: [{ role: 'readWrite', db: 'movies' }]
+    });
+---
+# Headless: mongodb.movies-app.svc.cluster.local resolves to the pod
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: movies-app
+  labels:
+    app: mongodb
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  clusterIP: None
+  ports:
+    - port: 27017
+      targetPort: 27017
+      protocol: TCP
+      name: mongodb
+  selector:
+    app: mongodb
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+  namespace: movies-app
+  labels:
+    app: mongodb
+    app.kubernetes.io/name: mongodb
+    app.kubernetes.io/component: database
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  serviceName: mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        app.kubernetes.io/name: mongodb
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mongodb
+          # 7.0; fall back to 6.0 if movies-store's driver (mongodb 3.5.5) can't talk to it
+          image: mongo:7.0
+          # Entrypoint prepends mongod and adds --auth when the root user is set.
+          # WiredTiger would otherwise size its cache from the node's RAM, not the limit.
+          args: ["--wiredTigerCacheSizeGB", "0.25"]
+          ports:
+            - containerPort: 27017
+              name: mongodb
+              protocol: TCP
+          envFrom:
+            - secretRef:
+                name: mongodb-auth
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          # TCP, not mongosh: a mongosh process per probe costs ~100Mi inside the
+          # 512Mi limit. The first-start init mongod listens on localhost only,
+          # so the pod is not Ready until initialisation has finished.
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /data/db
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+              readOnly: true
+      volumes:
+        - name: init
+          configMap:
+            name: mongodb-init
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: movies-app-gp3
+        resources:
+          requests:
+            storage: 5Gi

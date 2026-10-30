@@ -6,6 +6,9 @@ namespace: movies-app
 
 resources:
   - ../../base
+  # Dev-only MongoDB (single node, auth on); secrets from the bootstrap, not Git
+  - storageclass.yaml
+  - mongodb.yaml
 
 # Dev-specific patches
 patches:
