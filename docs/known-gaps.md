@@ -107,6 +107,41 @@ application SQS permissions.
 - When moving to DocumentDB, the URI must keep `tls=true&retryWrites=false`, and
   the images need the Amazon RDS CA bundle.
 
+## Gap 6 — all overlays deploy into the same namespace
+
+**Where:** `base/kustomization.yaml` and every overlay set `namespace: movies-app`,
+and all three ArgoCD Applications (`apps/movies-app-{dev,staging,prod}.yaml`)
+target `movies-app` on the same cluster (`https://kubernetes.default.svc`).
+
+**Effect:**
+
+- Only one environment can run at a time. If the staging or prod Application
+  is created next to dev, the Applications fight over the same Rollouts,
+  Services and ConfigMap, and each sync undoes the other.
+- A "promote staging" step would promote the dev Rollout, because it targets
+  `movies-app/<service>`, which is the same object.
+
+**Current state:** Only `apps/movies-app-dev.yaml` is applied (by the bootstrap
+in terragrunt-structure, not `kubectl apply -f apps/`). **Staging and prod
+promotion are disabled** in the Jenkins pipeline (the shared library stops
+after the dev stages) until staging and prod get their own namespaces or
+clusters.
+
+**Planned fix:** One namespace per environment (`movies-app-staging`,
+`movies-app-prod`) set in each overlay and Application, with the Jenkins
+Role/RoleBinding (`base/jenkins-rbac.yaml`) and the EKS access policy scope
+extended to them. A separate cluster per environment is the alternative.
+Then re-enable the staging and prod stages in the pipeline.
+
+## Dev: only movies-loader runs
+
+`overlays/dev/kustomization.yaml` sets movies-parser, movies-store and
+movies-marketplace to 0 replicas. They have no current image in ECR (the
+overlay's `dev-latest` tag was never pushed, and ECR expires images after 14
+days) and movies-store needs `MONGO_URI` (gap 5), so syncing them would leave
+the dev Application Degraded. Remove a service from that patch when its
+Jenkinsfile sets `deploy: true`.
+
 ---
 
 ## Fixed: every service rendered the movies-loader image
