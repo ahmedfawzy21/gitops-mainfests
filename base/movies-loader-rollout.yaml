@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: movies-loader
-          image: IMAGE_PLACEHOLDER
+          image: movies-loader-image
           imagePullPolicy: Always
           ports:
             - containerPort: 5000

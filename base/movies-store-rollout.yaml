@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
         - name: movies-store
-          image: IMAGE_PLACEHOLDER
+          image: movies-store-image
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
@@ -79,8 +79,9 @@ spec:
     canary:
       # Canary service for metrics/analysis
       canaryService: movies-store-canary
-      # Stable service (production traffic)
-      stableService: movies-store-stable
+      # Stable service (production traffic). Named movies-store because
+      # movies-marketplace NGINX proxies /api/ to http://movies-store:3000
+      stableService: movies-store
       # Traffic routing (requires service mesh or ingress controller)
       trafficRouting:
         managedRoutes:
@@ -108,7 +109,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: movies-store-stable
+  name: movies-store
   namespace: movies-app
   labels:
     app: movies-store

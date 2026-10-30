@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
         - name: movies-marketplace
-          image: IMAGE_PLACEHOLDER
+          image: movies-marketplace-image
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -37,7 +37,7 @@ spec:
               protocol: TCP
           env:
             - name: API_URL
-              value: "http://movies-store-stable:3000"
+              value: "http://movies-store:3000"
           resources:
             requests:
               memory: "64Mi"

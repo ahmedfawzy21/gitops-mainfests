@@ -16,19 +16,31 @@ patches:
         value: 1
     target:
       kind: Rollout
+  # Only movies-loader is deployed through GitOps so far. The other three have
+  # no current image in ECR (dev-latest does not exist, and ECR expires images
+  # after 14 days) and movies-store needs MONGO_URI (docs/known-gaps.md, gap 5),
+  # so they stay at 0 replicas until their pipelines deploy. Remove a service's
+  # entry here when its Jenkinsfile sets deploy: true.
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 0
+    target:
+      kind: Rollout
+      name: movies-parser|movies-store|movies-marketplace
 
 # Dev-specific images (will be overwritten by ArgoCD Image Updater)
 images:
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-loader-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-loader
-    newTag: main-a419cc0-11
-  - name: IMAGE_PLACEHOLDER
+    newTag: dev-latest
+  - name: movies-parser-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-parser
     newTag: dev-latest
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-store-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-store
     newTag: dev-latest
-  - name: IMAGE_PLACEHOLDER
+  - name: movies-marketplace-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-marketplace
     newTag: dev-latest
 

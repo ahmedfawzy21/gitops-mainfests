@@ -1,0 +1,38 @@
+# =============================================================================
+# Jenkins access to Argo Rollouts in movies-app
+# =============================================================================
+# The Jenkins worker IAM role is mapped by its EKS access entry to the
+# Kubernetes group movies-app-deployers (terragrunt-structure,
+# modules/jenkins-workers). Its AmazonEKSViewPolicy association (movies-app
+# only) covers pods, services and ReplicaSets but not the Rollout custom
+# resource, so this Role adds exactly what the pipeline needs:
+#   - read Rollouts (getRolloutStatus, wait for the new image)
+#   - patch rollouts/status (promoteRollout: promote, abort, retry)
+# No other write access: ArgoCD applies everything else from this repo.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-rollouts
+  namespace: movies-app
+rules:
+  - apiGroups: ["argoproj.io"]
+    resources: ["rollouts"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["argoproj.io"]
+    resources: ["rollouts/status"]
+    verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jenkins-rollouts
+  namespace: movies-app
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: jenkins-rollouts
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: movies-app-deployers

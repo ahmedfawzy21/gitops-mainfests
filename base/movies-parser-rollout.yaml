@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: movies-parser
-          image: IMAGE_PLACEHOLDER
+          image: movies-parser-image
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
@@ -38,8 +38,22 @@ spec:
             - configMapRef:
                 name: movies-app-config
           env:
-            - name: PORT
+            # Names must match os.Getenv() calls in movies-parser/main.go
+            - name: HEALTH_PORT
               value: "8080"
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: movies-app-secrets
+                  key: MONGO_URI
+                  # Optional until MONGO_URI is delivered (docs/known-gaps.md, gap 5);
+                  # without SQS_URL the parser runs in health-check-only mode anyway
+                  optional: true
+            - name: MONGO_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: movies-app-config
+                  key: MONGO_DB_NAME
           resources:
             requests:
               memory: "64Mi"
