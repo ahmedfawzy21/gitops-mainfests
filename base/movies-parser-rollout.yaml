@@ -46,9 +46,6 @@ spec:
                 secretKeyRef:
                   name: movies-app-secrets
                   key: MONGO_URI
-                  # Optional until MONGO_URI is delivered (docs/known-gaps.md, gap 5);
-                  # without SQS_URL the parser runs in health-check-only mode anyway
-                  optional: true
             - name: MONGO_DATABASE
               valueFrom:
                 configMapKeyRef:

@@ -77,15 +77,15 @@ spec:
             allowPrivilegeEscalation: false
   strategy:
     canary:
-      # Canary service for metrics/analysis
+      # Canary pods only (the controller pins this Service's selector to the
+      # canary ReplicaSet), for testing the new version directly
       canaryService: movies-store-canary
-      # Stable service (production traffic). Named movies-store because
-      # movies-marketplace NGINX proxies /api/ to http://movies-store:3000
-      stableService: movies-store
-      # Traffic routing (requires service mesh or ingress controller)
-      trafficRouting:
-        managedRoutes:
-          - name: primary
+      # No trafficRouting and no stableService: there is no mesh or
+      # traffic-routing ingress, so the split comes from pod counts (setWeight
+      # scales the ReplicaSets). The movies-store Service, which the marketplace
+      # NGINX proxies /api/ to, selects stable and canary pods alike. As a
+      # stableService it would be pinned to the stable pods and the canary would
+      # get no traffic.
       # Canary steps - gradual rollout
       steps:
         # Step 1: 10% traffic to canary

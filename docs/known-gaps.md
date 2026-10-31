@@ -1,15 +1,15 @@
 # Known gaps — movies-app data path
 
-Three gaps currently stop the loader → SQS → parser → MongoDB → store path from
-working in-cluster. They are documented here and are **not** implemented yet.
-Each one needs infrastructure work (IAM, Terraform outputs, secret delivery)
-that is outside this repo.
+Gaps 1 and 2 still stop the loader → SQS → parser → MongoDB → store path from
+working in-cluster; gap 5 is closed for dev only. They are documented here and,
+except where marked, are **not** implemented yet. Each one needs infrastructure
+work (IAM, Terraform outputs, secret delivery) that is outside this repo.
 
 Data flow these gaps affect:
 
 ```
 movies-loader --SendMessage--> SQS movies-loader-<env> --Receive/Delete--> movies-parser
-movies-parser --InsertOne--> MongoDB (mongodb-service.movies-app:27017) <--find-- movies-store
+movies-parser --InsertOne--> MongoDB (mongodb.movies-app:27017, dev) <--find-- movies-store
 ```
 
 Already fixed on branch `config-fixes`:
@@ -107,6 +107,28 @@ application SQS permissions.
 - When moving to DocumentDB, the URI must keep `tls=true&retryWrites=false`, and
   the images need the Amazon RDS CA bundle.
 
+**Status — closed for dev, open for staging/prod:** dev runs its own MongoDB
+(`overlays/dev/mongodb.yaml`: one node, auth on, `mongo:7.0`). The
+terragrunt-structure bootstrap (`scripts/argocd-bootstrap.sh app-secrets`)
+reads Secrets Manager `movies-app/dev/mongodb` (`root_password`,
+`app_password`) and creates, without printing or storing any value:
+
+- `mongodb-auth`: `MONGO_INITDB_ROOT_USERNAME`, `MONGO_INITDB_ROOT_PASSWORD`,
+  `MONGO_APP_PASSWORD`;
+- `movies-app-secrets`: `MONGO_URI` =
+  `mongodb://movies:<app_password>@mongodb.movies-app.svc.cluster.local:27017/movies?authSource=movies`.
+
+The parser's reference is no longer optional. Notes:
+
+- MongoDB creates the users only on its first start (empty volume). Changing
+  a password later is manual: `db.changeUserPassword` in the pod, update the
+  Secrets Manager secret, re-run the bootstrap, restart store and parser.
+- movies-store uses mongoose 5.9.9 / driver 3.5.5, officially tested up to
+  MongoDB 4.4. If it cannot talk to 7.0, use `mongo:6.0` (new volume: a
+  data directory can't move back a major version).
+- Staging/prod still have no MongoDB and no `MONGO_URI` (and share the
+  namespace, gap 6). The External Secrets fix above remains the plan there.
+
 ## Gap 6 — all overlays deploy into the same namespace
 
 **Where:** `base/kustomization.yaml` and every overlay set `namespace: movies-app`,
@@ -133,14 +155,47 @@ Role/RoleBinding (`base/jenkins-rbac.yaml`) and the EKS access policy scope
 extended to them. A separate cluster per environment is the alternative.
 Then re-enable the staging and prod stages in the pipeline.
 
-## Dev: only movies-loader runs
+## Gap 7 — `k8s/base/secrets.yaml` holds a placeholder password in Git
 
-`overlays/dev/kustomization.yaml` sets movies-parser, movies-store and
-movies-marketplace to 0 replicas. They have no current image in ECR (the
-overlay's `dev-latest` tag was never pushed, and ECR expires images after 14
-days) and movies-store needs `MONGO_URI` (gap 5), so syncing them would leave
-the dev Application Degraded. Remove a service from that patch when its
-Jenkinsfile sets `deploy: true`.
+**Where:** `k8s/base/secrets.yaml` in the old raw-manifests tree (`Project3/k8s`,
+next to terragrunt-structure). It defines `movies-app-secrets` with
+`MONGODB_PASSWORD: "CHANGE_ME_IN_PRODUCTION"` in plain text, and
+`k8s/base/mongodb-statefulset.yaml` uses it as the MongoDB root password.
+
+**Effect:** Anyone who applies that tree gets a MongoDB whose root password is
+public. Because it also defines `movies-app-secrets`, applying it would replace
+the bootstrap-created Secret in dev and drop `MONGO_URI`.
+
+**Planned fix:** Delete the file, or replace it with an `ExternalSecret` (the
+External Secrets Operator is not installed yet; Terraform only creates its IRSA
+role). Do not use the old StatefulSet either: each pod generates its own
+replica-set keyfile in an `emptyDir`, so its members cannot authenticate to
+each other. Treat any value ever committed there as burned.
+
+## Gap 8 — Terraform's `movies-app/mongodb` secret keeps its password in state
+
+**Where:** terragrunt-structure `modules/secrets-manager/main.tf`
+(`create_mongodb_secret`, default `true`). `random_password.mongodb` generates
+the password and `aws_secretsmanager_secret_version.mongodb` writes it, so the
+value is in Terraform state in plain text. It also names the database
+`moviesdb`, while the apps use `movies`.
+
+**Effect:** Anyone with read access to the state bucket can read the
+password. Nothing in dev uses this secret: dev uses `movies-app/dev/mongodb`,
+created with the AWS CLI outside Terraform.
+
+**Planned fix:** Set `create_mongodb_secret = false` (Terraform deletes the
+secret after its recovery window), or keep only the secret resource in
+Terraform and write the value outside it, as for `movies-app/dev/mongodb`.
+
+## Dev: all four services run
+
+Each Rollout runs one replica in dev. A service whose pipeline has not yet
+committed an image tag pulls `dev-latest`, which is not in ECR (ECR expires
+images after 14 days): its pod stays in `ImagePullBackOff` until the first
+`deploy: true` build commits a tag. MongoDB and its Secrets must exist first
+(gap 5), because MongoDB's sync-wave -1 holds the whole dev Application until
+it is healthy.
 
 ---
 
