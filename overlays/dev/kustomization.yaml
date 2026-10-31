@@ -30,7 +30,7 @@ images:
     newTag: repo-hygiene-4bce8ec-2
   - name: movies-store-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-store
-    newTag: dev-latest
+    newTag: repo-hygiene-ea71888-2
   - name: movies-marketplace-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-marketplace
     newTag: dev-latest
