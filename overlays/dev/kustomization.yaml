@@ -33,7 +33,7 @@ images:
     newTag: repo-hygiene-ea71888-2
   - name: movies-marketplace-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-marketplace
-    newTag: dev-latest
+    newTag: repo-hygiene-c824d74f-2
 
 # Labels on every resource's metadata only. Not on selectors: kustomize adds
 # selector labels to Services but cannot reach the Rollout CRD's pod template,
