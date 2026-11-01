@@ -24,7 +24,7 @@ patches:
 images:
   - name: movies-loader-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-loader
-    newTag: repo-hygiene-6ee49c3-2
+    newTag: repo-hygiene-6ee49c3-1
   - name: movies-parser-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-parser
     newTag: repo-hygiene-4bce8ec-1
