@@ -12,6 +12,7 @@ resources:
   - movies-parser-rollout.yaml
   - movies-store-rollout.yaml
   - movies-marketplace-rollout.yaml
+  - movies-marketplace-ingress.yaml
 
 # Labels on every resource's metadata only. Not on selectors: kustomize adds
 # selector labels to Services but cannot reach the Rollout CRD's pod template,

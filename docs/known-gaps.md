@@ -149,6 +149,26 @@ promotion are disabled** in the Jenkins pipeline (the shared library stops
 after the dev stages) until staging and prod get their own namespaces or
 clusters.
 
+**Blocks real staging and prod.** The public entry point is ready for them
+by inputs alone (terragrunt-structure `app_hostnames`: `staging.gromaops.dev`;
+`gromaops.dev` + `www`; certificate, WAF, ExternalDNS owner
+`movies-app-<env>` per environment), but it can't serve them on a shared
+cluster or namespace:
+
+- One marketplace Ingress per namespace: the staging or prod Application
+  would take over dev's `movies-marketplace` Ingress and swap its hosts.
+- IngressClass `alb` belongs to one cluster's controller, with one set of
+  IngressClassParams (one environment's certificate, WAF and load balancer
+  name), and only lets namespace `movies-app` use it.
+- Every environment's Terraform names its EKS cluster `movies-app`
+  (`project_name`), so two environments can't both have a cluster in the
+  same account and region.
+
+Staging and prod need their **own clusters** (cluster name per environment,
+then this repo needs no change for the entry point) **or their own
+namespaces** (below, plus one IngressClass and IngressClassParams per
+environment and the namespace in its namespaceSelector).
+
 **Planned fix:** One namespace per environment (`movies-app-staging`,
 `movies-app-prod`) set in each overlay and Application, with the Jenkins
 Role/RoleBinding (`base/jenkins-rbac.yaml`) and the EKS access policy scope

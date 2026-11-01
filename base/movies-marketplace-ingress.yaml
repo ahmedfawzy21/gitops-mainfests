@@ -1,0 +1,43 @@
+# =============================================================================
+# movies-marketplace public entry point (AWS Load Balancer Controller)
+# Nothing per environment lives here; it all comes from Terraform inputs:
+#   - hosts: app_hostnames, set by terragrunt-structure
+#     scripts/argocd-bootstrap.sh as kustomize patches on the Application.
+#     marketplace.invalid is only a placeholder (never resolves, never gets a
+#     DNS record: ExternalDNS only manages gromaops.dev).
+#   - scheme, certificate, TLS policy, HTTP->HTTPS redirect, WAF, load
+#     balancer name and attributes: IngressClassParams "alb" (same script).
+#     Only namespace movies-app may use the class.
+#   - DNS: ExternalDNS creates an alias record per host.
+# Traffic goes to the blue/green active Service only, never the preview.
+# =============================================================================
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: movies-marketplace
+  namespace: movies-app
+  labels:
+    app: movies-marketplace
+    app.kubernetes.io/name: movies-marketplace
+    app.kubernetes.io/component: frontend
+  annotations:
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/success-codes: "200"
+    # Short drain so a blue/green switch stops sending to the old pods well
+    # within the Rollout's scaleDownDelaySeconds (30)
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=20
+spec:
+  ingressClassName: alb
+  rules:
+    - host: marketplace.invalid
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: movies-marketplace-active
+                port:
+                  number: 8080
