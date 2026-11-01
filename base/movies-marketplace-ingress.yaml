@@ -1,10 +1,12 @@
 # =============================================================================
 # movies-marketplace public entry point (AWS Load Balancer Controller)
 # Nothing per environment lives here; it all comes from Terraform inputs:
-#   - hosts: app_hostnames, set by terragrunt-structure
-#     scripts/argocd-bootstrap.sh as kustomize patches on the Application.
-#     marketplace.invalid is only a placeholder (never resolves, never gets a
-#     DNS record: ExternalDNS only manages gromaops.dev).
+#   - class and hosts: terragrunt-structure scripts/argocd-bootstrap.sh sets
+#     ingressClassName alb and the app_hostnames as kustomize patches on the
+#     Application. From Git alone the class is "unassigned" (no IngressClass
+#     and no controller has that name) and the host is the placeholder
+#     marketplace.invalid: no load balancer, no DNS record (ExternalDNS only
+#     watches class alb, and only manages gromaops.dev).
 #   - scheme, certificate, TLS policy, HTTP->HTTPS redirect, WAF, load
 #     balancer name and attributes: IngressClassParams "alb" (same script).
 #     Only namespace movies-app may use the class.
@@ -29,7 +31,8 @@ metadata:
     # within the Rollout's scaleDownDelaySeconds (30)
     alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=20
 spec:
-  ingressClassName: alb
+  # Placeholder: the bootstrap's patch sets alb. Never a real class here.
+  ingressClassName: unassigned
   rules:
     - host: marketplace.invalid
       http:
