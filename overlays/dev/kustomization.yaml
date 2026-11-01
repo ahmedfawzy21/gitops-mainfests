@@ -27,7 +27,7 @@ images:
     newTag: repo-hygiene-6ee49c3-2
   - name: movies-parser-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-parser
-    newTag: repo-hygiene-4bce8ec-2
+    newTag: repo-hygiene-4bce8ec-1
   - name: movies-store-image
     newName: 724921088099.dkr.ecr.eu-north-1.amazonaws.com/movies-store
     newTag: repo-hygiene-ea71888-2
